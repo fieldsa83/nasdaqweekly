@@ -14,25 +14,52 @@ library(lubridate)
 library(plotly)
 
 # Function to calculate weekly returns indexed to start of year
-calculate_weekly_returns <- function(symbol, start_date, end_date) {
-  data <- getSymbols(symbol, from = start_date, to = end_date, src = "yahoo", auto.assign = FALSE)
+calculate_weekly_returns <- function(symbol, start_date, end_date, use_prev_year_end = TRUE) {
+  # Add extra year to get previous year's end price
+  adjusted_start <- if(use_prev_year_end) {
+    as.Date(paste0(year(start_date) - 1, "-12-01"))
+  } else {
+    start_date
+  }
+  
+  data <- getSymbols(symbol, from = adjusted_start, to = end_date, src = "yahoo", auto.assign = FALSE)
   prices <- Ad(data)
   
   df <- data.frame(date = index(prices), price = as.numeric(prices))
-  df <- df %>%
+  
+  # Get reference prices (either last day of prev year or first day of current year)
+  reference_prices <- df %>%
+    mutate(year = year(date)) %>%
+    group_by(year) %>%
+    summarise(
+      ref_price = if(use_prev_year_end) {
+        # Last price of previous year
+        first(price[month(date) == 12 & year(date) == year[1] - 1]) 
+      } else {
+        # First price of current year
+        first(price[year(date) == year[1]])
+      },
+      .groups = 'drop'
+    )
+  
+  # Calculate weekly prices
+  df_weekly <- df %>%
     mutate(year = year(date),
            week = week(date)) %>%
     group_by(year, week) %>%
-    summarise(date = last(date), price = last(price), .groups = 'drop') %>%
+    summarise(date = last(date), 
+              price = last(price), 
+              .groups = 'drop') %>%
     arrange(date)
   
-  df <- df %>%
-    group_by(year) %>%
-    mutate(pct_change = (price / first(price) - 1) * 100) %>%
+  # Join with reference prices and calculate percent change
+  df_final <- df_weekly %>%
+    left_join(reference_prices, by = "year") %>%
+    mutate(pct_change = (price / ref_price - 1) * 100) %>%
     filter(week <= 52) %>%
-    ungroup()
+    select(-ref_price)
   
-  return(df)
+  return(df_final)
 }
 
 # Set date range
