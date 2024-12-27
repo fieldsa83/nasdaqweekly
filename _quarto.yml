@@ -1,6 +1,11 @@
 project:
   type: website
   output-dir: _site
+  resources:
+    - CNAME
+website:
+  site-url: "https://fieldsa83.github.io/nasdaqweekly"
+
 format:
   html:
     self-contained: true
