@@ -67,7 +67,7 @@ start_date <- as.Date("2008-01-01")
 start_year <- as.integer(format(start_date, "%Y"))
 
 # Calculate weekly returns for NASDAQ
-nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date)
+nasdaq_returns <- calculate_weekly_returns("^IXIC", start_date, end_date, use_prev_year_end = FALSE)
 
 # Split data into dataframes
 df_historical <- nasdaq_returns %>% filter(year >= start_year & year <= 2023)
